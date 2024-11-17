@@ -5,48 +5,75 @@
 #include <linux/i2c-dev.h> //for IOCTL defs
 #include <fcntl.h>
 
-#define I2C_FICHIER "/dev/i2c-2" // fichier Linux representant le BUS #2
-#define I2C_ADRESSE 0x68 // adresse du Device I2C MPU-9250 (motion tracking)
+#include "VL6180x.h"
+#include "VL6180x.c"
+#include "MPU9250.h"
+#include "MPU9250.c"
+
+#define I2C_FICHIER_BUS_EXTERNE "/dev/i2c-1" // fichier Linux representant le BUS #1
+#define I2C_FICHIER_BUS_INTERNE "/dev/i2c-2" // fichier Linux representant le BUS #2
+
+int open_I2C_bus(char*, int);
 
 int main()
+{
+	/// ouverture du port de communication pour le capteur MPU9250, bus I2C interne
+	int fdPortI2C_Interne = open_I2C_bus(I2C_FICHIER_BUS_INTERNE, I2C_ADRESSE_MPU9250);
+	if(fdPortI2C_Interne < 0)
+	{
+		return -1;
+	}
+	/// ouverture du port de communication pour le capteur VL6180x, bus I2C externe
+	int fdPortI2C_Externe = open_I2C_bus(I2C_FICHIER_BUS_EXTERNE, I2C_ADRESSE_VL6180x);
+	if(fdPortI2C_Externe < 0)
+	{
+		return -1;
+	}
+
+	printf("ID MPU9250 = %#04X\n", MPU9250_lire_ID(fdPortI2C_Interne)); // no error mngt
+	printf("ID VL6180x = %#04X\n", VL6180x_lire_ID(fdPortI2C_Externe)); // no error mngt
+
+	if(VL6180x_initialiser(fdPortI2C_Externe) < 0)
+	{
+		printf("erreur VL6180x Initialiser\n");
+		return -1;
+	}
+
+	float distance = 0.0;
+	while(1)
+	{
+		if(VL6180x_lireUneDistance(fdPortI2C_Externe, &distance) < 0 )
+		{
+			printf("erreur VL6180x Lire distance\n");
+			return -1;
+		}
+		else
+		{
+			printf("d=%2.5f\n", distance);
+		}
+	}
+
+	close(fdPortI2C_Interne);
+	close(fdPortI2C_Externe);
+	return 0;
+}
+
+int open_I2C_bus(char* port, int adresse_I2C)
 {
 	int fdPortI2C;  // file descriptor I2C
 
 	// Initialisation du port I2C, 
-	fdPortI2C = open(I2C_FICHIER, O_RDWR); // ouverture du 'fichier', création d'un 'file descriptor' vers le port I2C
+	fdPortI2C = open(port, O_RDWR); // ouverture du 'fichier', création d'un 'file descriptor' vers le port I2C
 	if(fdPortI2C == -1)
 	{
-		printf("erreur: I2C initialisation step 1\n");
+		printf("erreur: ouverture du port I2C\n");
 		return -1;
 	}
-	if(ioctl(fdPortI2C, I2C_SLAVE_FORCE, I2C_ADRESSE) < 0)  // I2C_SLAVE_FORCE if it is already in use by a driver (i2cdetect : UU)
-	{
-		printf("erreur: I2C initialisation step 2\n");
+	if(ioctl(fdPortI2C, I2C_SLAVE_FORCE, adresse_I2C) < 0)  // Liaison de l'adresse I2C au fichier (file descriptor) du bus I2C
+	{ 	// I2C_SLAVE_FORCE if it is already in use by a driver (i2cdetect : UU)
+		printf("erreur: adresse du device I2C\n");
 		close(fdPortI2C);
 		return -1;
 	}
-	
-	// Écriture et Lecture sur le port I2C
-	uint8_t Source = 0x75; // registre d'ID du chip I2C
-	uint8_t Destination;
-	uint8_t NombreDOctetsALire = 1;
-	uint8_t NombreDOctetsAEcrire = 1;
-
-
-	if(write(fdPortI2C, &Source, NombreDOctetsAEcrire) != NombreDOctetsAEcrire)
-	{
-		printf("erreur: Écriture I2C\n");
-		close(fdPortI2C);
-		return -1;
-	}
-	if (read(fdPortI2C, &Destination, NombreDOctetsALire) != NombreDOctetsALire)
-	{
-		printf("erreur: Lecture I2C\n");
-		close(fdPortI2C);
-		return -1;
-	}
-	printf("octets lus: %#04x\n", Destination);
-
-	close(fdPortI2C); /// Fermeture du 'file descriptor'
-	return 0;
+	return fdPortI2C;
 }
