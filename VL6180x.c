@@ -38,7 +38,7 @@ int VL6180x_ecrire(int fdPortI2C, uint16_t Registre, uint8_t Donnee)
 	message[2] = Donnee;
 	if (write(fdPortI2C, message, 3) != 3)
 	{
-		printf("erreur: VL6180x_ecrire donnee\n");
+		perror("erreur: VL6180x_ecrire donnee ");
 		return -1;
 	}
 	return 0;
@@ -51,12 +51,12 @@ int VL6180x_lire(int fdPortI2C, uint16_t Registre, uint8_t *Donnee)
 	Commande[1] = (uint8_t)Registre;
 	if (write(fdPortI2C, Commande, 2) != 2)
 	{
-		printf("erreur: VL6180x_ecrire commande\n");
+		perror("erreur: VL6180x_ecrire commande ");
 		return -1;
 	}
 	if (read(fdPortI2C, Donnee, 1) != 1)
 	{
-		printf("erreur: VL6180x_lire donnee\n");
+		perror("erreur: VL6180x_lire donnee ");
 		return -1;
 	}
 	return 0;
@@ -67,42 +67,29 @@ int VL6180x_lire_ID(int fdPortI2C)
 	uint16_t registre = 0x0000;
 	uint8_t Identification; // emplacement memoire pour stocker la donnee lue
 
-	VL6180x_lire(fdPortI2C, registre, &Identification);
-
-	return Identification;
+	if(VL6180x_lire(fdPortI2C, registre, &Identification) == 0)
+		return Identification;
+	else
+		return -1;
 }
 
 int VL6180x_lireUneDistance(int fdPortI2C, float *Distance)
 {
 	uint8_t valeur;
 	if (VL6180x_ecrire(fdPortI2C, 0x0018, 0x01) < 0)
-	{
-		printf("erreur: VL6180x_lireUneDistance 1\n");
 		return -1;
-	}
 	if(VL6180x_lire(fdPortI2C, 0x004F, &valeur) < 0)
-	{
-		printf("erreur: VL6180x_lireUneDistance 2\n");
 		return -1;
-	}
 	while((valeur & 0x7) != 4)
   	{
     	if (VL6180x_lire(fdPortI2C, 0x004F, &valeur) < 0)
-    	{
-    		printf("erreur: VL6180x_lireUneDistance 3\n");
       		return -1;
-    	}
   	}
   	if (VL6180x_lire(fdPortI2C, 0x62, &valeur) < 0)
-  	{
-		printf("erreur: VL6180x_lireUneDistance 4\n");
     	return -1;
-	}
 	if (VL6180x_ecrire(fdPortI2C, 0x15, 0x07) < 0)
-  	{
-  	printf("erreur: VL6180x_lireUneDistance 5\n");
-    return -1;
-	}
+    	return -1;
+
 	*Distance = (float)valeur /10.0;
 	return 0;
 }
@@ -113,7 +100,7 @@ int VL6180x_initialiser(int fdPortI2C)
 	uint8_t valeur;
 	if (VL6180x_lire(fdPortI2C, 0x16, &valeur) < 0)
 	{
-  		printf("erreur: VL6180x_initialiser 2\n");
+  		printf("erreur: VL6180x_initialiser\n");
     	return -1;
 	}
 	if (valeur != 1)

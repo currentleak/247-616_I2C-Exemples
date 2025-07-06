@@ -12,10 +12,9 @@
 //      |_____________|
 //
 //Note:
-//Des pull-up de 4.7k sont requises sur scl et sda si celles du BbB n'y sont pas
+//Des pull-up de 4.7k sont requises sur scl et sda 
 //Une pull-up de 10k est requise pour gpio pour permettre au VL6180x de bien démarré
 //Le vl6180x ne peut être utilisé pendant la première milliseconde qui suit sont alimentation.
-//Il faut donc attendre ce temps avant de communiquer avec lui.
 
 #include <stdint.h> 
 #include <stdio.h>
